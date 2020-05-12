@@ -40,4 +40,9 @@ class ARKitTestResult {
       map['anchor'] != null ? ARKitAnchor.fromMap(map['anchor']) : null,
     );
   }
+
+  @override
+  String toString() {
+    return '[ARKitTestResult] type: $type, distance: $distance, localTransform: $localTransform worldTransform: $worldTransform anchor: $anchor';
+  }
 }

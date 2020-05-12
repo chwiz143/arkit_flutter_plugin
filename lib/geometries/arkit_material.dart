@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 /// The contents of a ARKitMaterial slot
 /// This can be used to specify the various properties of SCNMaterial slots such as diffuse, ambient, etc.
 class ARKitMaterialProperty {
-  ARKitMaterialProperty({this.color, this.image, this.url,this.videoProperty});
+  ARKitMaterialProperty({this.color, this.image, this.url, this.videoProperty});
 
   /// Specifies the receiver's color.
   final Color color;
@@ -16,7 +16,7 @@ class ARKitMaterialProperty {
   /// Specifies the location of an image file
   final String url;
 
-  final Map<String,dynamic> videoProperty;
+  final Map<String, dynamic> videoProperty;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'color': color?.value,
@@ -27,16 +27,35 @@ class ARKitMaterialProperty {
 }
 
 class ARKitVideoProperty {
-  ARKitVideoProperty({this.isPlay,this.isLoop,this.videoPath});
+  ARKitVideoProperty({
+    this.isPlay,
+    this.isLoop,
+    this.videoPath,
+    this.chromaKeyColor,
+    this.enableChromaKey,
+    this.enableHalfMask,
+    this.keyingThreshold,
+    this.keyingSlope,
+  });
 
   final bool isPlay;
   final bool isLoop;
   final String videoPath;
+  final Color chromaKeyColor;
+  final bool enableChromaKey;
+  final bool enableHalfMask;
+  final double keyingThreshold;
+  final double keyingSlope;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
         'isPlay': isPlay,
         'isLoop': isLoop,
         'videoPath': videoPath,
+        'chromaKeyColor': chromaKeyColor?.value,
+        'enableChromaKey': enableChromaKey,
+        'enableHalfMask': enableHalfMask,
+        'keyingThreshold': keyingThreshold,
+        'keyingSlope': keyingSlope,
       }..removeWhere((String k, dynamic v) => v == null);
 }
 

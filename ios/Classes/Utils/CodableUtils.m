@@ -29,14 +29,19 @@
         [params setObject:@"planeAnchor" forKey:@"anchorType"];
         [params setObject:[CodableUtils convertSimdFloat3ToString:plane.center] forKey:@"center"];
         [params setObject:[CodableUtils convertSimdFloat3ToString:plane.extent] forKey:@"extent"];
-    }
-    if ([anchor isMemberOfClass:[ARImageAnchor class]]) {
+    } else if ([anchor isMemberOfClass:[ARImageAnchor class]]) {
         ARImageAnchor *image = (ARImageAnchor*)anchor;
         [params setObject:@"imageAnchor" forKey:@"anchorType"];
         [params setObject:image.referenceImage.name forKey:@"referenceImageName"];
         simd_float2 size = simd_make_float2(image.referenceImage.physicalSize.width, image.referenceImage.physicalSize.height);
         [params setObject:[CodableUtils convertSimdFloat2ToString:size] forKey:@"referenceImagePhysicalSize"];
         [params setObject:([image isTracked] ? @"true" : @"false") forKey:@"isTracked"];
+    } else if ([anchor isMemberOfClass:[ARObjectAnchor class]]) {
+        ARObjectAnchor* object = (ARObjectAnchor*)anchor;
+        [params setObject:@"objectAnchor" forKey:@"anchorType"];
+        [params setObject:object.referenceObject.name forKey:@"referenceObjectName"];
+        [params setObject:[CodableUtils convertSimdFloat3ToString:object.referenceObject.center] forKey:@"center"];
+        [params setObject:[CodableUtils convertSimdFloat3ToString:object.referenceObject.extent] forKey:@"extent"];
     }
     // if ([anchor isMemberOfClass:[ARFaceAnchor class]]) {
     //     [params setObject:@"faceAnchor" forKey:@"anchorType"];

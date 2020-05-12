@@ -3,15 +3,17 @@
 
 @interface SceneViewDelegate()
 @property FlutterMethodChannel* channel;
+@property FlutterArkitController* controller;
 @end
 
 
 @implementation SceneViewDelegate
 
-- (instancetype)initWithChannel:(FlutterMethodChannel *)channel {
+- (instancetype)initWithChannel:(FlutterMethodChannel *)channel controller:(FlutterArkitController *)controller {
   self = [super init];
   if (self) {
     self.channel = channel;
+      self.controller = controller;
   }
   return self;
 }
@@ -44,16 +46,23 @@
 }
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer didAddNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor {
-  if (node.name == nil) {
-    node.name = [NSUUID UUID].UUIDString;
-  }
-  NSDictionary* params = [self prepareParamsForAnchorEventwithNode:node andAnchor:anchor];
-  [_channel invokeMethod: @"didAddNodeForAnchor" arguments: params];
+    if (node.name == nil) {
+      node.name = [NSUUID UUID].UUIDString;
+    }
+    [_controller setNodeToObjectsParent:node];
+    
+    NSLog(@"**** didAddNodeForAnchor \n%@ \n%@", node, anchor);
+    if (![_controller addNurieObject:anchor node: node]) {
+        NSDictionary* params = [self prepareParamsForAnchorEventwithNode:node andAnchor:anchor];
+        [_channel invokeMethod: @"didAddNodeForAnchor" arguments: params];
+    }
 }
 
 - (void)renderer:(id <SCNSceneRenderer>)renderer didUpdateNode:(SCNNode *)node forAnchor:(ARAnchor *)anchor {
   NSDictionary* params = [self prepareParamsForAnchorEventwithNode:node andAnchor:anchor];
-  [_channel invokeMethod: @"didUpdateNodeForAnchor" arguments: params];
+  if (![_controller checkMarkerNurie:anchor node: node]) {
+      [_channel invokeMethod: @"didUpdateNodeForAnchor" arguments: params];
+  }
 }
 
 #pragma mark - Helpers

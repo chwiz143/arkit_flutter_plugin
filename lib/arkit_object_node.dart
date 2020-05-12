@@ -26,7 +26,7 @@ class ARKitObjectNode extends ARKitNode {
           rotation: rotation,
           name: name,
           renderingOrder: renderingOrder,
-          isHidden:isHidden,
+          isHidden: isHidden,
         );
 
   /// Node localPath at bundle.

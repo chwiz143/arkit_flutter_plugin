@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
+
 import 'package:arkit_plugin/arkit_node.dart';
+import 'package:arkit_plugin/arkit_plugin.dart';
 import 'package:arkit_plugin/arkit_video_node.dart';
+import 'package:arkit_plugin/bloc/arkit_arplane_detection.dart';
+import 'package:arkit_plugin/bloc/arkit_configuration.dart';
+import 'package:arkit_plugin/bloc/arkit_world_alignment.dart';
 import 'package:arkit_plugin/geometries/arkit_anchor.dart';
 import 'package:arkit_plugin/geometries/arkit_box.dart';
 import 'package:arkit_plugin/geometries/arkit_capsule.dart';
@@ -13,18 +18,15 @@ import 'package:arkit_plugin/geometries/arkit_sphere.dart';
 import 'package:arkit_plugin/geometries/arkit_text.dart';
 import 'package:arkit_plugin/geometries/arkit_torus.dart';
 import 'package:arkit_plugin/geometries/arkit_tube.dart';
+import 'package:arkit_plugin/hit/arkit_hit_test_result.dart';
 import 'package:arkit_plugin/hit/arkit_node_pan_result.dart';
 import 'package:arkit_plugin/hit/arkit_node_pinch_result.dart';
 import 'package:arkit_plugin/light/arkit_light_estimate.dart';
 import 'package:arkit_plugin/utils/matrix4_utils.dart';
-import 'package:arkit_plugin/bloc/arkit_arplane_detection.dart';
 import 'package:arkit_plugin/utils/vector_utils.dart';
-import 'package:arkit_plugin/hit/arkit_hit_test_result.dart';
-import 'package:arkit_plugin/bloc/arkit_configuration.dart';
-import 'package:arkit_plugin/bloc/arkit_world_alignment.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 typedef ARKitPluginCreatedCallback = void Function(ARKitController controller);
@@ -76,14 +78,16 @@ class ARKitController {
   //   });
   // }
 
-  static Future<bool> isARKitWorldTrackingSessionConfigurationSupported() async{
+  static Future<bool>
+      isARKitWorldTrackingSessionConfigurationSupported() async {
     var channel = MethodChannel('prepare_arkit');
-    return await channel.invokeMethod('isARKitWorldTrackingSessionConfigurationSupported');
+    return await channel
+        .invokeMethod('isARKitWorldTrackingSessionConfigurationSupported');
   }
 
-///
-/// Dynamic loading ARKitImageAnchor
-///
+  ///
+  /// Dynamic loading ARKitImageAnchor
+  ///
   ARKitController.initStartWorldTrackingSessionWithImage(
     int id,
     ARKitConfiguration configuration,
@@ -122,7 +126,8 @@ class ARKitController {
     });
   }
 
-  void addImageRunWithConfigAndImage(Uint8List bytes, int lengthInBytes, String imageName, double markerSizeMeter) {
+  void addImageRunWithConfigAndImage(Uint8List bytes, int lengthInBytes,
+      String imageName, double markerSizeMeter) {
     _channel.invokeMethod<void>('addImageRunWithConfigAndImage', {
       'imageBytes': bytes,
       'imageLength': lengthInBytes,
@@ -136,7 +141,7 @@ class ARKitController {
       'runOptions': runOptions,
     });
   }
-  
+
   MethodChannel _channel;
 
   /// This is called when a session fails.
@@ -157,15 +162,19 @@ class ARKitController {
   VoidCallback onSessionInterruptionEnded;
 
   StringResultHandler onNodeTap;
-  ARKitHitResultHandler onARTap;
+  ARKitHitResultHandler onPlaneTap;
   ARKitPinchGestureHandler onNodePinch;
   ARKitPanResultHandler onNodePan;
+  Function(bool) onNurieMarkerModeChanged;
+  Function(bool) onRecStatusChanged;
 
   /// Called when a new node has been mapped to the given anchor.
   AnchorEventHandler onAddNodeForAnchor;
 
   /// Called when a node will be updated with data from the given anchor.
   AnchorEventHandler onUpdateNodeForAnchor;
+
+  static const int ANIMATION_REPEAT_INFINITE = -1;
 
   final bool debug;
 
@@ -225,29 +234,126 @@ class ARKitController {
         : null;
   }
 
-  Future<void> playAnimation(
-      {@required String key,
-      @required String sceneName,
-      @required String animationIdentifier}) {
+  Future<void> startAnimation(
+    String nodeName, {
+    @required String key,
+    @required String sceneName,
+    @required String animationIdentifier,
+    int repeatCount = 0,
+  }) {
     assert(key != null);
     assert(sceneName != null);
     assert(animationIdentifier != null);
 
-    return _channel.invokeMethod('playAnimation', {
+    return _channel.invokeMethod('startAnimation', {
+      'nodeName': nodeName,
       'key': key,
       'sceneName': sceneName,
       'animationIdentifier': animationIdentifier,
+      'repeatCount': repeatCount,
     });
   }
 
-  Future<void> stopAnimation({
+  Future<void> stopAnimation(
+    String nodeName, {
     @required String key,
   }) {
     assert(key != null);
 
     return _channel.invokeMethod('stopAnimation', {
+      'nodeName': nodeName,
       'key': key,
     });
+  }
+
+  void screenCapture() {
+    _channel.invokeMethod<bool>('screenCapture');
+  }
+
+  Future<bool> toggleScreenRecord(
+    String path, {
+    ARKitRecordingWithAudio useAudio = ARKitRecordingWithAudio.None,
+  }) {
+    return _channel.invokeMethod<bool>(
+        'toggleScreenRecord', {'path': path, 'useAudio': useAudio._value});
+  }
+
+  void startScreenRecord(
+    String path, {
+    ARKitRecordingWithAudio useAudio = ARKitRecordingWithAudio.None,
+  }) {
+    _channel.invokeMethod<void>(
+        'startScreenRecord', {'path': path, 'useAudio': useAudio._value});
+  }
+
+  void stopScreenRecord() {
+    _channel.invokeMethod<void>('stopScreenRecord');
+  }
+
+  void addNurie(
+    String imageName,
+    double markerSizeMeter, {
+    int lengthInBytes,
+    Uint8List bytes,
+    String filePath,
+    Vector2 scale,
+    Vector2 offset,
+  }) {
+    bool paramsSatisfied = false;
+    Map map = {
+      'imageName': imageName,
+      'markerSizeMeter': markerSizeMeter,
+    };
+    if (lengthInBytes != null && imageName != null) {
+      map['imageLength'] = lengthInBytes;
+      map['imageBytes'] = bytes;
+      paramsSatisfied = true;
+    }
+    if (filePath != null) {
+      map['filePath'] = filePath;
+      paramsSatisfied = true;
+    }
+    if (scale != null) {
+      map['widthScale'] = scale.x;
+      map['heightScale'] = scale.y;
+    }
+    if (offset != null) {
+      map['xOffset'] = offset.x;
+      map['yOffset'] = offset.y;
+    }
+
+    if (paramsSatisfied) {
+      _channel.invokeMethod<void>('addNurie', map);
+    }
+  }
+
+  void findNurieMarker(
+    bool isStart, {
+    String nurie,
+  }) {
+    _channel.invokeMethod<void>(
+        'findNurieMarker', {'isStart': isStart, 'nurie': nurie});
+  }
+
+  void applyNurieTexture(String nodeName, String nurie) {
+    _channel.invokeMethod<void>(
+        'applyNurieTexture', {'nurie': nurie, 'nodeName': nodeName});
+  }
+
+  // need to call in onPlaneTap
+  void addTransformableNode(String transformName, ARKitNode node) {
+    final Map map = node.toMap();
+    map['parentNodeName'] = transformName;
+    _channel.invokeMethod<void>(
+        'addTransformableNode', {'transformName': transformName, 'node': map});
+  }
+
+  void addReferenceObject(String path, {String name}) {
+    final Map<String, String> map = {'path': path};
+    if (name != null) {
+      map['name'] = name;
+    }
+    _channel.invokeMethod<void>('addReferenceObject', map);
   }
 
   Map<String, dynamic> _addParentNodeNameToParams(
@@ -258,9 +364,11 @@ class ARKitController {
   }
 
   Future<void> _platformCallHandler(MethodCall call) {
-    if (debug) {
+//    if (debug) {
+    if (call.method != 'didUpdateNodeForAnchor') {
       print('_platformCallHandler call ${call.method} ${call.arguments}');
     }
+//    }
     switch (call.method) {
       case 'onError':
         if (onError != null) {
@@ -272,15 +380,15 @@ class ARKitController {
           onNodeTap(call.arguments);
         }
         break;
-      case 'onARTap':
-        if (onARTap != null) {
+      case 'onPlaneTap':
+        if (onPlaneTap != null) {
           final List<dynamic> input = call.arguments;
           final objects = input
               .cast<Map<dynamic, dynamic>>()
               .map<ARKitTestResult>(
                   (Map<dynamic, dynamic> r) => ARKitTestResult.fromMap(r))
               .toList();
-          onARTap(objects);
+          onPlaneTap(objects);
         }
         break;
       case 'onNodePinch':
@@ -306,6 +414,7 @@ class ARKitController {
         }
         break;
       case 'didAddNodeForAnchor':
+        print('**** didAddNodeForAnchor ${call.arguments}');
         if (onAddNodeForAnchor != null) {
           final anchor = _buildAnchor(call.arguments);
           onAddNodeForAnchor(anchor);
@@ -315,6 +424,16 @@ class ARKitController {
         if (onUpdateNodeForAnchor != null) {
           final anchor = _buildAnchor(call.arguments);
           onUpdateNodeForAnchor(anchor);
+        }
+        break;
+      case 'nurieMarkerModeChanged':
+        if (onNurieMarkerModeChanged != null) {
+          onNurieMarkerModeChanged(call.arguments['isStart']);
+        }
+        break;
+      case 'onRecStatusChanged':
+        if (onRecStatusChanged != null) {
+          onRecStatusChanged(call.arguments['isRecording']);
         }
         break;
       default:
@@ -333,7 +452,7 @@ class ARKitController {
 
     node.isHidden.addListener(() => _handleIsHiddenChanged(node));
 
-    if (node is ARKitVideoNode){
+    if (node is ARKitVideoNode) {
       node.isPlay.addListener(() => _handleIsPlayChanged(node));
     }
 
@@ -487,9 +606,9 @@ class ARKitController {
         _getHandlerParams(node, {'isHidden': node.isHidden.value}));
   }
 
-  void _handleIsPlayChanged(ARKitVideoNode node){
+  void _handleIsPlayChanged(ARKitVideoNode node) {
     _channel.invokeMethod<void>('isPlayChanged',
-      _getHandlerParams(node, {'isPlay': node.isPlay.value}));
+        _getHandlerParams(node, {'isPlay': node.isPlay.value}));
   }
 
   void _updateMaterials(ARKitNode node) {
@@ -525,7 +644,41 @@ class ARKitController {
         return ARKitImageAnchor.fromMap(map);
       case 'faceAnchor':
         return ARKitFaceAnchor.fromMap(map);
+      case 'objectAnchor':
+        return ARKitObjectAnchor.fromMap(map);
     }
     return ARKitAnchor.fromMap(map);
+  }
+}
+
+class ARKitRecordingWithAudio {
+  const ARKitRecordingWithAudio._(this._value, this._text);
+
+  static const ARKitRecordingWithAudio None =
+      ARKitRecordingWithAudio._(0, 'None');
+  static const ARKitRecordingWithAudio UseMic =
+      ARKitRecordingWithAudio._(1, 'UseMic');
+  static final values = [
+    None,
+    UseMic,
+  ];
+
+  final int _value;
+  final String _text;
+
+  static ARKitRecordingWithAudio get(int value) {
+    ARKitRecordingWithAudio ret = UseMic;
+    values.forEach((m) {
+      if (m._value == value) {
+        ret = m;
+        return;
+      }
+    });
+    return ret;
+  }
+
+  @override
+  String toString() {
+    return '$_text - $_value';
   }
 }

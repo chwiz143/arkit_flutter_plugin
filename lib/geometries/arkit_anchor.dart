@@ -128,3 +128,32 @@ class ARKitFaceAnchor extends ARKitAnchor {
         getMatrixFromString(map['rightEyeTransform']),
       );
 }
+
+class ARKitObjectAnchor extends ARKitAnchor {
+  ARKitObjectAnchor(
+    this.referenceObjectName,
+    this.center,
+    this.extent,
+    String nodeName,
+    String identifier,
+    Matrix4 transorm,
+  ) : super(
+          nodeName,
+          identifier,
+          transorm,
+        );
+
+  final String referenceObjectName;
+  final Vector3 center;
+  final Vector3 extent;
+
+  static ARKitObjectAnchor fromMap(Map<String, String> map) =>
+      ARKitObjectAnchor(
+        map['referenceImageName'],
+        createVector3FromString(map['center']),
+        createVector3FromString(map['extent']),
+        map['node_name'],
+        map['identifier'],
+        getMatrixFromString(map['transform']),
+      );
+}
